@@ -1,4 +1,4 @@
-using OnlyOfficeControl.Helpers;
+﻿using OnlyOfficeControl.Helpers;
 using System;
 using System.IO;
 using System.Web;

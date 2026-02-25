@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Web.UI;
 
@@ -17,7 +17,6 @@ namespace OnlyOfficeControl
                 litStatus.Text = string.Empty;
                 return;
             }
-
             docEditor.SetDocumentFromBytes(fuFile.FileBytes, fuFile.FileName);
             litStatus.Text = string.Empty;
         }

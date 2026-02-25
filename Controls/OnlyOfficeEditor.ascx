@@ -1,4 +1,4 @@
-<%@ Control Language="C#" AutoEventWireup="true" CodeBehind="OnlyOfficeEditor.ascx.cs" Inherits="OnlyOfficeControl.Controls.OnlyOfficeEditor" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeBehind="OnlyOfficeEditor.ascx.cs" Inherits="OnlyOfficeControl.Controls.OnlyOfficeEditor" %>
 
 <div id="<%= EditorContainerId %>_wrapper" style="position:relative;">
     <div id="<%= EditorContainerId %>_busy" class="we-busyOverlay" style="display:none;" aria-live="polite" aria-busy="true">
