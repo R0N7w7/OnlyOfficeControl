@@ -5,7 +5,7 @@ using System.Text;
 using System.Web;
 using System.Web.Script.Serialization;
 
-namespace OnlyOfficeControl.Handlers
+namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
 {
     public class OnlyOfficeHandler : IHttpHandler
     {
@@ -124,8 +124,10 @@ namespace OnlyOfficeControl.Handlers
                 context.Response.Write("Unsupported URL scheme");
                 return;
             }
-            System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+
+            ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+
             var req = (HttpWebRequest)WebRequest.Create(uri);
             req.Method = "GET";
 
@@ -150,7 +152,6 @@ namespace OnlyOfficeControl.Handlers
         {
             public int status { get; set; }
             public string url { get; set; }
-
         }
     }
 }

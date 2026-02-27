@@ -48,7 +48,7 @@ namespace OnlyOfficeControl
         /// Campo generado automáticamente.
         /// Para modificarlo, mueva la declaración del campo del archivo del diseñador al archivo de código subyacente.
         /// </remarks>
-        protected global::OnlyOfficeControl.Controls.OnlyOfficeEditor docEditor;
+        protected global::OnlyOfficeControl.Controls.OnlyOfficeEditorBundle.OnlyOfficeEditor docEditor;
 
         /// <summary>
         /// Control btnDescargar.

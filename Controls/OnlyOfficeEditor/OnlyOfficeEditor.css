@@ -1,0 +1,52 @@
+.ooe-wrapper {
+    position: relative;
+}
+
+iframe{
+    min-height: 500px;
+}
+
+.ooe-editor {
+    width: 100%;
+    background: #fff;
+}
+
+.ooe-busyOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    background: rgba(255,255,255,.72);
+    align-items: center;
+    justify-content: center;
+}
+
+.ooe-busyOverlay__card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ooe-busyOverlay__text {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.ooe-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #cbd5e1;
+    border-top-color: #7c9383;
+    border-radius: 50%;
+    display: inline-block;
+    animation: ooe-spin .85s linear infinite;
+}
+
+@keyframes ooe-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

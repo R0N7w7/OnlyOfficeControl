@@ -8,6 +8,15 @@ namespace OnlyOfficeControl
     {
         protected void Page_Load(object sender, EventArgs e)
         {
+                if (!IsPostBack)
+                {
+                    string sampleFilePath = Server.MapPath("~/SampleDocument.docx");
+                    if (File.Exists(sampleFilePath))
+                    {
+                        byte[] fileBytes = File.ReadAllBytes(sampleFilePath);
+                        docEditor.SetDocumentFromBytes(fileBytes, "SampleDocument.docx");
+                    }
+            }
         }
 
         protected void btnUpload_Click(object sender, EventArgs e)

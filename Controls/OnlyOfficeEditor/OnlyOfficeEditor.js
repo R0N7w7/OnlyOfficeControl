@@ -1,8 +1,5 @@
 /**
- * OnlyOfficeEditorModule — Módulo JavaScript reutilizable para OnlyOffice Document Server.
- *
- * Permite inicializar, controlar y obtener el documento editado de forma programática.
- * Soporta múltiples instancias de editor en la misma página.
+ * OnlyOfficeEditorModule — Módulo JavaScript para OnlyOffice Document Server.
  */
 var OnlyOfficeEditorModule = (function () {
     'use strict';
@@ -20,48 +17,6 @@ var OnlyOfficeEditorModule = (function () {
         } catch (e) { }
     }
 
-    function _applyIframeTheme(containerId) {
-        try {
-            var host = document.getElementById(containerId);
-            if (!host) return false;
-            var iframe = host.querySelector('iframe');
-            if (!iframe) return false;
-            var doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-            if (!doc) return false;
-
-            var id = 'we-iframe-theme';
-            if (doc.getElementById(id)) return true;
-
-            var style = doc.createElement('style');
-            style.id = id;
-            style.type = 'text/css';
-            style.appendChild(doc.createTextNode(
-                ':root{--we-accent:#7c9383;}\n'
-                + 'html,body{background:#fff !important;}\n'
-                + '.toolbar,.toolbar-box,.toolbar-group{border-color:rgba(229,231,235,.9) !important;}\n'
-                + '.btn,button{border-radius:12px !important;}\n'
-                + 'button.primary,.btn.primary,.button--primary{background:var(--we-accent) !important;border-color:var(--we-accent) !important;}\n'
-                + 'a,.link{color:var(--we-accent) !important;}\n'
-                + '*:focus{outline:none !important;box-shadow:0 0 0 4px rgba(124,147,131,.18) !important;}\n'
-            ));
-            (doc.head || doc.documentElement).appendChild(style);
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    function _startThemeRetry(containerId) {
-        var attempts = 0;
-        var maxAttempts = 40;
-        var timer = setInterval(function () {
-            attempts++;
-            if (_applyIframeTheme(containerId) || attempts >= maxAttempts) {
-                clearInterval(timer);
-            }
-        }, 250);
-    }
-
     function init(containerId, config, options) {
         if (!config || !config.document || !config.document.url) {
             console.warn('[OnlyOfficeEditorModule] Config inválida o sin document.url');
@@ -69,7 +24,7 @@ var OnlyOfficeEditorModule = (function () {
         }
 
         if (typeof DocsAPI === 'undefined') {
-            console.error('[OnlyOfficeEditorModule] DocsAPI no está cargado. ¿Falta el script del Document Server?');
+            console.error('[OnlyOfficeEditorModule] DocsAPI no está cargado.');
             if (options && options.onError) options.onError({ message: 'DocsAPI not loaded' });
             return null;
         }
@@ -86,6 +41,7 @@ var OnlyOfficeEditorModule = (function () {
         config.editorConfig.customization = config.editorConfig.customization || {};
         var cust = config.editorConfig.customization;
         cust.review = cust.review || {};
+
         if (cust.uiTheme === undefined) cust.uiTheme = 'theme-classic-light';
         if (cust.compactToolbar === undefined) cust.compactToolbar = false;
         if (cust.toolbarNoTabs === undefined) cust.toolbarNoTabs = false;
@@ -149,10 +105,6 @@ var OnlyOfficeEditorModule = (function () {
 
         setTimeout(function () { _setBusy(containerId, false); }, 8000);
 
-        if (options.applyTheme !== false) {
-            _startThemeRetry(containerId);
-        }
-
         return editor;
     }
 
@@ -199,14 +151,6 @@ var OnlyOfficeEditorModule = (function () {
         });
     }
 
-    function downloadDocument(containerId, fileName) {
-        return getEditedDocumentUrl(containerId).then(function (url) {
-            if (!url) throw new Error('No se recibió URL de descarga');
-            window.location.href = url;
-            return url;
-        });
-    }
-
     function getEditor(containerId) {
         var instance = _instances[containerId];
         return instance ? instance.editor : null;
@@ -218,10 +162,6 @@ var OnlyOfficeEditorModule = (function () {
             try { instance.editor.destroyEditor(); } catch (e) { }
         }
         delete _instances[containerId];
-    }
-
-    function setBusy(containerId, isBusy) {
-        _setBusy(containerId, isBusy);
     }
 
     function captureToHiddenField(containerId, hiddenFieldId, options) {
@@ -269,10 +209,8 @@ var OnlyOfficeEditorModule = (function () {
         init: init,
         getEditedDocumentUrl: getEditedDocumentUrl,
         getEditedDocumentBlob: getEditedDocumentBlob,
-        downloadDocument: downloadDocument,
         getEditor: getEditor,
         destroy: destroy,
-        setBusy: setBusy,
         captureToHiddenField: captureToHiddenField
     };
 })();

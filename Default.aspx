@@ -1,5 +1,5 @@
 ﻿<%@ Page Title="Home Page" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="OnlyOfficeControl._Default" ValidateRequest="false" %>
-<%@ Register Src="~/Controls/OnlyOfficeEditor.ascx" TagPrefix="oo" TagName="Editor" %>
+<%@ Register Src="~/Controls/OnlyOfficeEditor/OnlyOfficeEditor.ascx" TagPrefix="oo" TagName="Editor" %>
 
 <asp:Content ID="BodyContent" ContentPlaceHolderID="MainContent" runat="server">
     <style>

@@ -1,4 +1,3 @@
-ï»¿using OnlyOfficeControl.Helpers;
 using System;
 using System.IO;
 using System.Web;
@@ -6,7 +5,7 @@ using System.Web.Script.Serialization;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
-namespace OnlyOfficeControl.Controls
+namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
 {
     public partial class OnlyOfficeEditor : UserControl
     {
@@ -34,11 +33,19 @@ namespace OnlyOfficeControl.Controls
             set => ViewState["CallbackUrl"] = value;
         }
 
+        // ==================================================================================
+        // Configuración de rutas y secretos - ajustar según el entorno y necesidades
+
+        // URL del API de OnlyOffice (Servidor de documentos)
         public string OnlyOfficeApiUrl { get; set; } = "https://doclinea.pjhidalgo.gob.mx:4443/web-apps/apps/api/documents/api.js";
 
+        // Clave secreta para JWT - debe coincidir con la configurada en el servidor de OnlyOffice
         public string JwtSecret { get; set; } = "secreto_personalizado";
 
+        // URL que usa OnlyOffice para acceder y devolver documentos - debe coincidir con la ip y puerto de la aplicación.
         public string PublicBaseUrl { get; set; } = "https://192.168.10.34:44311";
+
+        // ==================================================================================
 
         public string Mode { get; set; } = "edit";
 
@@ -94,9 +101,9 @@ namespace OnlyOfficeControl.Controls
             DocumentName = Path.GetFileName(fileName);
             DocumentKey = GenerateDocumentKey(fileId);
             DocumentUrl = BuildAbsoluteUrl(
-                "~/Handlers/OnlyOfficeHandler.ashx?action=download&fileId=" + HttpUtility.UrlEncode(fileId));
+                "~/Controls/OnlyOfficeEditor/OnlyOfficeHandler.ashx?action=download&fileId=" + HttpUtility.UrlEncode(fileId));
             CallbackUrl = BuildAbsoluteUrl(
-                "~/Handlers/OnlyOfficeHandler.ashx?action=callback&fileId=" + HttpUtility.UrlEncode(fileId));
+                "~/Controls/OnlyOfficeEditor/OnlyOfficeHandler.ashx?action=callback&fileId=" + HttpUtility.UrlEncode(fileId));
         }
 
         public void SetDocumentFromFile(string serverFilePath, string displayName = null)
@@ -114,9 +121,9 @@ namespace OnlyOfficeControl.Controls
             DocumentName = originalName ?? fileId;
             DocumentKey = GenerateDocumentKey(fileId);
             DocumentUrl = BuildAbsoluteUrl(
-                "~/Handlers/OnlyOfficeHandler.ashx?action=download&fileId=" + HttpUtility.UrlEncode(fileId));
+                "~/Controls/OnlyOfficeEditor/OnlyOfficeHandler.ashx?action=download&fileId=" + HttpUtility.UrlEncode(fileId));
             CallbackUrl = BuildAbsoluteUrl(
-                "~/Handlers/OnlyOfficeHandler.ashx?action=callback&fileId=" + HttpUtility.UrlEncode(fileId));
+                "~/Controls/OnlyOfficeEditor/OnlyOfficeHandler.ashx?action=callback&fileId=" + HttpUtility.UrlEncode(fileId));
         }
 
         protected void Page_Load(object sender, EventArgs e)
@@ -211,18 +218,18 @@ namespace OnlyOfficeControl.Controls
             var type = GetType();
             var uid = ClientID;
 
-            var apiKey = "oo_api_script";
+            var apiKey = "oo_api_script_" + uid;
             if (!cs.IsClientScriptIncludeRegistered(type, apiKey))
                 cs.RegisterClientScriptInclude(type, apiKey, OnlyOfficeApiUrl);
 
-            var moduleKey = "oo_module_script";
+            var moduleKey = "oo_module_script_" + uid;
             if (!cs.IsClientScriptIncludeRegistered(type, moduleKey))
-                cs.RegisterClientScriptInclude(type, moduleKey, ResolveUrl("~/Scripts/OnlyOfficeEditor.js"));
+                cs.RegisterClientScriptInclude(type, moduleKey, ResolveUrl("~/Controls/OnlyOfficeEditor/OnlyOfficeEditor.js"));
 
-            var proxyKey = "oo_proxy_url";
+            var proxyKey = "oo_proxy_url_" + uid;
             if (!cs.IsStartupScriptRegistered(type, proxyKey))
             {
-                var proxyUrl = ResolveUrl("~/Handlers/OnlyOfficeHandler.ashx?action=proxy&url=");
+                var proxyUrl = ResolveUrl("~/Controls/OnlyOfficeEditor/OnlyOfficeHandler.ashx?action=proxy&url=");
                 var proxyScript = string.Format("window.__onlyOfficeProxyUrl='{0}';", proxyUrl);
                 cs.RegisterStartupScript(type, proxyKey, proxyScript, true);
             }
