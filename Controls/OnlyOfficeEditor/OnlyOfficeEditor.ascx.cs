@@ -40,7 +40,8 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
         public string OnlyOfficeApiUrl { get; set; } = "https://doclinea.pjhidalgo.gob.mx:4443/web-apps/apps/api/documents/api.js";
 
         // Clave secreta para JWT - debe coincidir con la configurada en el servidor de OnlyOffice
-        public string JwtSecret { get; set; } = "secreto_personalizado";
+        // public string JwtSecret { get; set; } = "secreto_personalizado";
+        public string JwtSecret { get; set; } = "JGbxwFgrXgMcMrknjdxI";
 
         // URL que usa OnlyOffice para acceder y devolver documentos - debe coincidir con la ip y puerto de la aplicación.
         public string PublicBaseUrl { get; set; } = "https://192.168.10.34:44311";
