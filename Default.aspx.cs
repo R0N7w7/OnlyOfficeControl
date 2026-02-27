@@ -10,11 +10,11 @@ namespace OnlyOfficeControl
         {
                 if (!IsPostBack)
                 {
-                    string sampleFilePath = Server.MapPath("~/SampleDocument.docx");
+                    string sampleFilePath = Server.MapPath("~/doc.docx");
                     if (File.Exists(sampleFilePath))
                     {
                         byte[] fileBytes = File.ReadAllBytes(sampleFilePath);
-                        docEditor.SetDocumentFromBytes(fileBytes, "SampleDocument.docx");
+                        docEditor.SetDocumentFromBytes(fileBytes, "doc.docx");
                     }
             }
         }
