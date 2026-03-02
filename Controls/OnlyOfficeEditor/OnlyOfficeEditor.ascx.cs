@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net;
+using System.Text;
+using System.Threading;
 using System.Web;
 using System.Web.Script.Serialization;
 using System.Web.UI;
@@ -34,7 +38,7 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
         }
 
         // ==================================================================================
-        // Configuraci髇 de rutas y secretos - ajustar seg鷑 el entorno y necesidades
+        // Configuraci锟絥 de rutas y secretos - ajustar seg锟絥 el entorno y necesidades
 
         // URL del API de OnlyOffice (Servidor de documentos)
         public string OnlyOfficeApiUrl { get; set; } = "https://doclinea.pjhidalgo.gob.mx:4443/web-apps/apps/api/documents/api.js";
@@ -43,7 +47,6 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
         // public string JwtSecret { get; set; } = "secreto_personalizado";
         public string JwtSecret { get; set; } = "JGbxwFgrXgMcMrknjdxI";
 
-        // URL que usa OnlyOffice para acceder y devolver documentos - debe coincidir con la ip y puerto de la aplicaci髇.
         public string PublicBaseUrl { get; set; } = "https://192.168.10.34:44311";
 
         // ==================================================================================
@@ -127,6 +130,73 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
                 "~/Controls/OnlyOfficeEditor/OnlyOfficeHandler.ashx?action=callback&fileId=" + HttpUtility.UrlEncode(fileId));
         }
 
+        public string ConvertCurrentDocumentToPdfUrl(int maxAttempts = 15, int delayMs = 1000)
+        {
+            if (!HasDocument)
+                throw new InvalidOperationException("No hay un documento cargado para convertir.");
+
+            if (string.IsNullOrWhiteSpace(DocumentUrl) || !Uri.TryCreate(DocumentUrl, UriKind.Absolute, out _))
+                throw new InvalidOperationException("La URL del documento no es v谩lida para la conversi贸n.");
+
+            var sourceExt = Path.GetExtension(DocumentName)?.TrimStart('.').ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(sourceExt))
+                throw new InvalidOperationException("No fue posible determinar el tipo del documento.");
+
+            var convertServiceUrl = ResolveConvertServiceUrl();
+            var serializer = new JavaScriptSerializer();
+            var attempts = Math.Max(1, maxAttempts);
+            var wait = Math.Max(0, delayMs);
+
+            for (var i = 0; i < attempts; i++)
+            {
+                var requestPayload = new Dictionary<string, object>
+                {
+                    ["async"] = false,
+                    ["filetype"] = sourceExt,
+                    ["outputtype"] = "pdf",
+                    ["url"] = DocumentUrl,
+                    ["title"] = Path.GetFileName(DocumentName),
+                    ["key"] = DocumentKey
+                };
+
+                var payloadJson = serializer.Serialize(requestPayload);
+                var token = OnlyOfficeJwt.Create(payloadJson, JwtSecret);
+
+                requestPayload["token"] = token;
+                var body = serializer.Serialize(requestPayload);
+
+                var result = CallConvertService(convertServiceUrl, body, token);
+                if (result.EndConvert && !string.IsNullOrWhiteSpace(result.FileUrl))
+                    return result.FileUrl;
+
+                if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+                    throw new InvalidOperationException(result.ErrorMessage);
+
+                if (i < attempts - 1 && wait > 0)
+                    Thread.Sleep(wait);
+            }
+
+            throw new TimeoutException("La conversi贸n a PDF no termin贸 dentro del tiempo esperado.");
+        }
+
+        public byte[] ConvertCurrentDocumentToPdfBytes(int maxAttempts = 15, int delayMs = 1000)
+        {
+            var pdfUrl = ConvertCurrentDocumentToPdfUrl(maxAttempts, delayMs);
+            ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+
+            var req = (HttpWebRequest)WebRequest.Create(pdfUrl);
+            req.Method = "GET";
+
+            using (var resp = (HttpWebResponse)req.GetResponse())
+            using (var stream = resp.GetResponseStream())
+            using (var ms = new MemoryStream())
+            {
+                stream.CopyTo(ms);
+                return ms.ToArray();
+            }
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
         }
@@ -170,6 +240,98 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
                 + ",\"documentType\":" + serializer.Serialize(config.documentType)
                 + ",\"editorConfig\":" + serializer.Serialize(config.editorConfig)
                 + "}";
+        }
+
+        private string ResolveConvertServiceUrl()
+        {
+            if (string.IsNullOrWhiteSpace(OnlyOfficeApiUrl) || !Uri.TryCreate(OnlyOfficeApiUrl, UriKind.Absolute, out var apiUri))
+                throw new InvalidOperationException("OnlyOfficeApiUrl no est谩 configurada correctamente.");
+
+            var root = apiUri.GetLeftPart(UriPartial.Authority);
+            return root.TrimEnd('/') + "/ConvertService.ashx";
+        }
+
+        private static ConvertServiceResult CallConvertService(string convertServiceUrl, string body, string token)
+        {
+            ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+
+            var req = (HttpWebRequest)WebRequest.Create(convertServiceUrl);
+            req.Method = "POST";
+            req.ContentType = "application/json";
+            req.Accept = "application/json";
+            req.Headers["Authorization"] = "Bearer " + token;
+
+            var bytes = Encoding.UTF8.GetBytes(body);
+            using (var reqStream = req.GetRequestStream())
+            {
+                reqStream.Write(bytes, 0, bytes.Length);
+            }
+
+            try
+            {
+                using (var resp = (HttpWebResponse)req.GetResponse())
+                using (var stream = resp.GetResponseStream())
+                using (var reader = new StreamReader(stream, Encoding.UTF8))
+                {
+                    var json = reader.ReadToEnd();
+                    return ParseConvertServiceResult(json);
+                }
+            }
+            catch (WebException ex)
+            {
+                var message = "Error al invocar ConvertService.ashx";
+                if (ex.Response != null)
+                {
+                    using (var stream = ex.Response.GetResponseStream())
+                    using (var reader = new StreamReader(stream, Encoding.UTF8))
+                    {
+                        var responseBody = reader.ReadToEnd();
+                        if (!string.IsNullOrWhiteSpace(responseBody))
+                            message += ": " + responseBody;
+                    }
+                }
+                return new ConvertServiceResult { ErrorMessage = message };
+            }
+        }
+
+        private static ConvertServiceResult ParseConvertServiceResult(string json)
+        {
+            var result = new ConvertServiceResult();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                result.ErrorMessage = "La respuesta del servicio de conversi贸n lleg贸 vac铆a.";
+                return result;
+            }
+
+            var serializer = new JavaScriptSerializer();
+            var payload = serializer.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+
+            if (payload.TryGetValue("fileUrl", out var fileUrlObj))
+                result.FileUrl = fileUrlObj as string;
+
+            if (payload.TryGetValue("endConvert", out var endConvertObj))
+            {
+                try { result.EndConvert = Convert.ToBoolean(endConvertObj); }
+                catch { result.EndConvert = false; }
+            }
+
+            if (payload.TryGetValue("error", out var errorObj) && errorObj != null)
+            {
+                var errorRaw = Convert.ToString(errorObj);
+                if (!string.IsNullOrWhiteSpace(errorRaw) && errorRaw != "0")
+                    result.ErrorMessage = "ConvertService devolvi贸 error=" + errorRaw + ".";
+            }
+
+            if (string.IsNullOrWhiteSpace(result.ErrorMessage)
+                && !result.EndConvert
+                && payload.TryGetValue("percent", out var percentObj)
+                && percentObj != null)
+            {
+                result.ErrorMessage = null;
+            }
+
+            return result;
         }
 
         private string BuildAbsoluteUrl(string virtualPath)
@@ -278,6 +440,13 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
                 if (found != null) return found;
             }
             return null;
+        }
+
+        private class ConvertServiceResult
+        {
+            public bool EndConvert { get; set; }
+            public string FileUrl { get; set; }
+            public string ErrorMessage { get; set; }
         }
     }
 }

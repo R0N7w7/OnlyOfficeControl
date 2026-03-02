@@ -8,15 +8,15 @@ namespace OnlyOfficeControl
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-                if (!IsPostBack)
-                {
-                    string sampleFilePath = Server.MapPath("~/doc.docx");
-                    if (File.Exists(sampleFilePath))
-                    {
-                        byte[] fileBytes = File.ReadAllBytes(sampleFilePath);
-                        docEditor.SetDocumentFromBytes(fileBytes, "doc.docx");
-                    }
-            }
+            //    if (!IsPostBack)
+            //    {
+            //        string sampleFilePath = Server.MapPath("~/doc.docx");
+            //        if (File.Exists(sampleFilePath))
+            //        {
+            //            byte[] fileBytes = File.ReadAllBytes(sampleFilePath);
+            //            docEditor.SetDocumentFromBytes(fileBytes, "doc.docx");
+            //        }
+            //}
         }
 
         protected void btnUpload_Click(object sender, EventArgs e)
@@ -28,11 +28,14 @@ namespace OnlyOfficeControl
             }
             docEditor.SetDocumentFromBytes(fuFile.FileBytes, fuFile.FileName);
             litStatus.Text = string.Empty;
+
+            docEditor.Mode = "view";
         }
 
         protected void btnDescargar_Click(object sender, EventArgs e)
         {
-            byte[] documentBytes = docEditor.GetEditedDocumentBytes();
+            byte[] documentBytes = docEditor.ConvertCurrentDocumentToPdfBytes();
+            //byte[] documentBytes = docEditor.GetEditedDocumentBytes();
 
             if (documentBytes == null || documentBytes.Length == 0)
             {
@@ -46,7 +49,7 @@ namespace OnlyOfficeControl
             var fileName = docEditor.DocumentName ?? ("documento" + ext);
             Response.Clear();
             Response.ContentType = "application/octet-stream";
-            Response.AddHeader("Content-Disposition", "attachment; filename=" + fileName);
+            Response.AddHeader("Content-Disposition", "attachment; filename=" + fileName + ".pdf");
             Response.AddHeader("Content-Length", documentBytes.Length.ToString());
             Response.BinaryWrite(documentBytes);
             Response.End();
