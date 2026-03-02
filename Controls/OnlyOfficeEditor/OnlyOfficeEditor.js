@@ -17,6 +17,21 @@ var OnlyOfficeEditorModule = (function () {
         } catch (e) { }
     }
 
+    function _allowSafeUnload() {
+        try { window.onbeforeunload = null; } catch (e) { }
+        try { document.body.onbeforeunload = null; } catch (e) { }
+
+        try {
+            var killer = function (evt) {
+                evt.stopImmediatePropagation();
+            };
+            window.addEventListener('beforeunload', killer, true);
+            setTimeout(function () {
+                try { window.removeEventListener('beforeunload', killer, true); } catch (e) { }
+            }, 1500);
+        } catch (e) { }
+    }
+
     function init(containerId, config, options) {
         if (!config || !config.document || !config.document.url) {
             console.warn('[OnlyOfficeEditorModule] Config inválida o sin document.url');
@@ -193,6 +208,8 @@ var OnlyOfficeEditorModule = (function () {
                 if (options.onCaptured) options.onCaptured(base64);
 
                 if (options.autoPostBack && typeof __doPostBack === 'function') {
+                    _allowSafeUnload();
+                    try { destroy(containerId); } catch (e) { }
                     __doPostBack(options.postBackTarget || '', options.postBackArgument || '');
                 }
 

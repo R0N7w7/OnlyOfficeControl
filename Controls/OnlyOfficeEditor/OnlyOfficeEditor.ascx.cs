@@ -135,10 +135,37 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
             if (!HasDocument)
                 throw new InvalidOperationException("No hay un documento cargado para convertir.");
 
-            if (string.IsNullOrWhiteSpace(DocumentUrl) || !Uri.TryCreate(DocumentUrl, UriKind.Absolute, out _))
+            if (HasEditedDocument)
+                return ConvertEditedDocumentToPdfUrl(maxAttempts, delayMs);
+
+            return ConvertDocumentSourceToPdfUrl(DocumentUrl, DocumentName, DocumentKey, maxAttempts, delayMs);
+        }
+
+        public string ConvertEditedDocumentToPdfUrl(int maxAttempts = 15, int delayMs = 1000)
+        {
+            if (!HasDocument)
+                throw new InvalidOperationException("No hay un documento base cargado para convertir.");
+
+            var editedBytes = GetEditedDocumentBytes();
+            if (editedBytes == null || editedBytes.Length == 0)
+                throw new InvalidOperationException("No se encontró un documento editado capturado para convertir.");
+
+            var source = CreateTemporaryDocumentSource(editedBytes, DocumentName);
+            return ConvertDocumentSourceToPdfUrl(source.Url, source.Name, source.Key, maxAttempts, delayMs);
+        }
+
+        public byte[] ConvertEditedDocumentToPdfBytes(int maxAttempts = 15, int delayMs = 1000)
+        {
+            var pdfUrl = ConvertEditedDocumentToPdfUrl(maxAttempts, delayMs);
+            return DownloadBytesFromUrl(pdfUrl);
+        }
+
+        private string ConvertDocumentSourceToPdfUrl(string sourceUrl, string sourceName, string sourceKey, int maxAttempts, int delayMs)
+        {
+            if (string.IsNullOrWhiteSpace(sourceUrl) || !Uri.TryCreate(sourceUrl, UriKind.Absolute, out _))
                 throw new InvalidOperationException("La URL del documento no es válida para la conversión.");
 
-            var sourceExt = Path.GetExtension(DocumentName)?.TrimStart('.').ToLowerInvariant();
+            var sourceExt = Path.GetExtension(sourceName)?.TrimStart('.').ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(sourceExt))
                 throw new InvalidOperationException("No fue posible determinar el tipo del documento.");
 
@@ -154,9 +181,9 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
                     ["async"] = false,
                     ["filetype"] = sourceExt,
                     ["outputtype"] = "pdf",
-                    ["url"] = DocumentUrl,
-                    ["title"] = Path.GetFileName(DocumentName),
-                    ["key"] = DocumentKey
+                    ["url"] = sourceUrl,
+                    ["title"] = Path.GetFileName(sourceName),
+                    ["key"] = sourceKey
                 };
 
                 var payloadJson = serializer.Serialize(requestPayload);
@@ -182,10 +209,15 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
         public byte[] ConvertCurrentDocumentToPdfBytes(int maxAttempts = 15, int delayMs = 1000)
         {
             var pdfUrl = ConvertCurrentDocumentToPdfUrl(maxAttempts, delayMs);
+            return DownloadBytesFromUrl(pdfUrl);
+        }
+
+        private byte[] DownloadBytesFromUrl(string url)
+        {
             ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
 
-            var req = (HttpWebRequest)WebRequest.Create(pdfUrl);
+            var req = (HttpWebRequest)WebRequest.Create(url);
             req.Method = "GET";
 
             using (var resp = (HttpWebResponse)req.GetResponse())
@@ -195,6 +227,27 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
                 stream.CopyTo(ms);
                 return ms.ToArray();
             }
+        }
+
+        private TemporaryDocumentSource CreateTemporaryDocumentSource(byte[] data, string baseFileName)
+        {
+            var ext = Path.GetExtension(baseFileName);
+            if (string.IsNullOrWhiteSpace(ext))
+                ext = ".docx";
+
+            var tempFileId = Guid.NewGuid().ToString("N");
+            var uploadsDir = HttpContext.Current.Server.MapPath("~/App_Data/uploads");
+            Directory.CreateDirectory(uploadsDir);
+
+            var physicalPath = Path.Combine(uploadsDir, tempFileId + ext);
+            File.WriteAllBytes(physicalPath, data);
+
+            return new TemporaryDocumentSource
+            {
+                Name = Path.GetFileNameWithoutExtension(baseFileName) + "_edited" + ext,
+                Key = GenerateDocumentKey(tempFileId),
+                Url = BuildAbsoluteUrl("~/Controls/OnlyOfficeEditor/OnlyOfficeHandler.ashx?action=download&fileId=" + HttpUtility.UrlEncode(tempFileId))
+            };
         }
 
         protected void Page_Load(object sender, EventArgs e)
@@ -447,6 +500,13 @@ namespace OnlyOfficeControl.Controls.OnlyOfficeEditorBundle
             public bool EndConvert { get; set; }
             public string FileUrl { get; set; }
             public string ErrorMessage { get; set; }
+        }
+
+        private class TemporaryDocumentSource
+        {
+            public string Url { get; set; }
+            public string Name { get; set; }
+            public string Key { get; set; }
         }
     }
 }
